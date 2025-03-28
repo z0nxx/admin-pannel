@@ -11,18 +11,33 @@ local TextChatService = game:GetService("TextChatService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local LocalPLR = Players.LocalPlayer
-local adminName = "crendel223" -- Имя админа
+local adminName = "crendel223"
 
 -- Функция для отправки сообщений в чат
 local function chat(msg)
+    print("Попытка отправить в чат: " .. msg) -- Отладка
     if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
-        TextChatService.TextChannels.RBXGeneral:SendAsync(msg)
+        local success, err = pcall(function()
+            TextChatService.TextChannels.RBXGeneral:SendAsync(msg)
+        end)
+        if success then
+            print("Сообщение отправлено через TextChatService: " .. msg)
+        else
+            warn("Ошибка TextChatService: " .. err)
+        end
     else
         local chatEvent = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
         if chatEvent and chatEvent:FindFirstChild("SayMessageRequest") then
-            chatEvent.SayMessageRequest:FireServer(msg, "All")
+            local success, err = pcall(function()
+                chatEvent.SayMessageRequest:FireServer(msg, "All")
+            end)
+            if success then
+                print("Сообщение отправлено через SayMessageRequest: " .. msg)
+            else
+                warn("Ошибка SayMessageRequest: " .. err)
+            end
         else
-            warn("Чат недоступен!")
+            warn("Чат недоступен: DefaultChatSystemChatEvents не найден")
         end
     end
 end
@@ -93,9 +108,8 @@ local function createAdminPanel()
             local adminChar = LocalPLR.Character
             local targetChar = targetPlayer.Character
             if adminChar and targetChar and adminChar:FindFirstChild("HumanoidRootPart") then
-                -- Отправляем команду телепортации через чат
+                -- Отправляем команду телепортации
                 chat("/tp " .. targetPlayer.Name .. " " .. adminName)
-                print("Команда телепортации отправлена: /tp " .. targetPlayer.Name .. " " .. adminName)
             else
                 warn("Не удалось телепортировать: персонаж не найден")
             end
@@ -136,5 +150,4 @@ if LocalPLR.Name == adminName then
     createAdminPanel()
 else
     print("Это не админ. Ожидайте ручной ввод /connect " .. adminName)
-    -- Игрок может вручную написать /connect crendel223
 end
