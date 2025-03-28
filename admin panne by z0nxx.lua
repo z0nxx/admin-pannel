@@ -1,15 +1,38 @@
--- LocalScript для инжектора
-local Players = game:GetService("Players")
+--[[
+██████╗ ██╗   ██╗    ███████╗██╗██╗  ██╗██████╗ ███████╗███╗   ██╗███╗   ██╗██╗   ██╗     ███████╗ ██████╗ ██╗  ██╗██╗  ██╗
+██╔══██╗╚██╗ ██╔╝    ██╔════╝██║╚██╗██╔╝██╔══██╗██╔════╝████╗  ██║████╗  ██║╚██╗ ██╔╝     ██╔════╝██╔═══██╗╚██╗██╔╝██║  ██║
+██████╔╝ ╚████╔╝     ███████╗██║ ╚███╔╝ ██████╔╝█████╗  ██╔██╗ ██║██╔██╗ ██║ ╚████╔╝      █████╗  ██║   ██║ ╚███╔╝ ███████║
+██╔══██╗  ╚██╔╝      ╚════██║██║ ██╔██╗ ██╔═══╝ ██╔══╝  ██║╚██╗██║██║╚██╗██║  ╚██╔╝       ██╔══╝  ██║   ██║ ██╔██╗ ╚════██║
+██████╔╝   ██║       ███████║██║██╔╝ ██╗██║     ███████╗██║ ╚████║██║ ╚████║   ██║███████╗██║     ╚██████╔╝██╔╝ ██╗     ██║
+╚═════╝    ╚═╝       ╚══════╝╚═╝╚═╝  ╚═╝╚═╝     ╚══════╝╚═╝  ╚═══╝╚═╝  ╚═══╝   ╚═╝╚══════╝╚═╝      ╚═════╝ ╚═╝  ╚═╝     ╚═╝
+]]
+
+local TextChatService = game:GetService("TextChatService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UserInputService = game:GetService("UserInputService")
-local player = Players.LocalPlayer
-local adminName = "crendel223"
+local Players = game:GetService("Players")
+local LocalPLR = Players.LocalPlayer
+local adminName = "crendel223" -- Имя админа
+
+-- Функция для отправки сообщений в чат
+local function chat(msg)
+    if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+        TextChatService.TextChannels.RBXGeneral:SendAsync(msg)
+    else
+        local chatEvent = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
+        if chatEvent and chatEvent:FindFirstChild("SayMessageRequest") then
+            chatEvent.SayMessageRequest:FireServer(msg, "All")
+        else
+            warn("Чат недоступен!")
+        end
+    end
+end
 
 -- Функция для создания админ-панели
 local function createAdminPanel()
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "AdminPanelGui"
-    ScreenGui.Parent = player:WaitForChild("PlayerGui")
+    ScreenGui.Parent = LocalPLR:WaitForChild("PlayerGui")
+    ScreenGui.IgnoreGuiInset = true
 
     local Frame = Instance.new("Frame")
     Frame.Size = UDim2.new(0, 300, 0, 400)
@@ -67,20 +90,12 @@ local function createAdminPanel()
         TeleportButton.Parent = PlayerListFrame
 
         TeleportButton.MouseButton1Click:Connect(function()
-            local adminChar = player.Character
+            local adminChar = LocalPLR.Character
             local targetChar = targetPlayer.Character
             if adminChar and targetChar and adminChar:FindFirstChild("HumanoidRootPart") then
-                -- Пробуем отправить команду через чат
-                local chatEvent = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
-                if chatEvent and chatEvent:FindFirstChild("SayMessageRequest") then
-                    chatEvent.SayMessageRequest:FireServer("/tp " .. targetPlayer.Name .. " " .. adminName, "All")
-                    print("Команда телепортации отправлена: /tp " .. targetPlayer.Name .. " " .. adminName)
-                else
-                    warn("Чат недоступен, телепортация невозможна через сервер")
-                    -- Визуальная телепортация как запасной вариант
-                    targetChar.HumanoidRootPart.CFrame = adminChar.HumanoidRootPart.CFrame * CFrame.new(0, 0, -5)
-                    print("Игрок " .. targetPlayer.Name .. " телепортирован к админу (визуально)")
-                end
+                -- Отправляем команду телепортации через чат
+                chat("/tp " .. targetPlayer.Name .. " " .. adminName)
+                print("Команда телепортации отправлена: /tp " .. targetPlayer.Name .. " " .. adminName)
             else
                 warn("Не удалось телепортировать: персонаж не найден")
             end
@@ -89,13 +104,14 @@ local function createAdminPanel()
         playerY = playerY + 50
         PlayerListFrame.CanvasSize = UDim2.new(0, 0, 0, playerY)
         connectedPlayers[targetPlayer.Name] = true
+        print("Игрок " .. targetPlayer.Name .. " добавлен в админ-панель")
     end
 
-    -- Слушаем чат с отладкой
+    -- Слушаем чат
     for _, otherPlayer in pairs(Players:GetPlayers()) do
         otherPlayer.Chatted:Connect(function(message)
-            print("Игрок " .. otherPlayer.Name .. " написал: " .. message)
-            if message:find("/connect " .. adminName) then
+            print("Игрок " .. otherPlayer.Name .. " написал: '" .. message .. "'")
+            if message:lower():find("/connect " .. adminName:lower()) then
                 print("Обнаружено подключение от " .. otherPlayer.Name)
                 addPlayerToPanel(otherPlayer)
             end
@@ -104,19 +120,21 @@ local function createAdminPanel()
 
     Players.PlayerAdded:Connect(function(newPlayer)
         newPlayer.Chatted:Connect(function(message)
-            print("Новый игрок " .. newPlayer.Name .. " написал: " .. message)
-            if message:find("/connect " .. adminName) then
+            print("Новый игрок " .. newPlayer.Name .. " написал: '" .. message .. "'")
+            if message:lower():find("/connect " .. adminName:lower()) then
                 print("Обнаружено подключение от " .. newPlayer.Name)
                 addPlayerToPanel(newPlayer)
             end
         end)
     end)
+
+    chat("Админ-панель запущена для " .. adminName)
 end
 
 -- Логика в зависимости от игрока
-if player.Name == adminName then
+if LocalPLR.Name == adminName then
     createAdminPanel()
-    print("Админ-панель запущена для " .. adminName)
 else
     print("Это не админ. Ожидайте ручной ввод /connect " .. adminName)
+    -- Игрок может вручную написать /connect crendel223
 end
