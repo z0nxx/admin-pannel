@@ -69,9 +69,18 @@ local function createAdminPanel()
         TeleportButton.MouseButton1Click:Connect(function()
             local adminChar = player.Character
             local targetChar = targetPlayer.Character
-            if adminChar and targetChar and adminChar:FindFirstChild("HumanoidRootPart") and targetChar:FindFirstChild("HumanoidRootPart") then
-                targetChar.HumanoidRootPart.CFrame = adminChar.HumanoidRootPart.CFrame * CFrame.new(0, 0, -5)
-                print("Игрок " .. targetPlayer.Name .. " телепортирован к админу (визуально)")
+            if adminChar and targetChar and adminChar:FindFirstChild("HumanoidRootPart") then
+                -- Пробуем отправить команду через чат
+                local chatEvent = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
+                if chatEvent and chatEvent:FindFirstChild("SayMessageRequest") then
+                    chatEvent.SayMessageRequest:FireServer("/tp " .. targetPlayer.Name .. " " .. adminName, "All")
+                    print("Команда телепортации отправлена: /tp " .. targetPlayer.Name .. " " .. adminName)
+                else
+                    warn("Чат недоступен, телепортация невозможна через сервер")
+                    -- Визуальная телепортация как запасной вариант
+                    targetChar.HumanoidRootPart.CFrame = adminChar.HumanoidRootPart.CFrame * CFrame.new(0, 0, -5)
+                    print("Игрок " .. targetPlayer.Name .. " телепортирован к админу (визуально)")
+                end
             else
                 warn("Не удалось телепортировать: персонаж не найден")
             end
@@ -85,8 +94,8 @@ local function createAdminPanel()
     -- Слушаем чат с отладкой
     for _, otherPlayer in pairs(Players:GetPlayers()) do
         otherPlayer.Chatted:Connect(function(message)
-            print("Игрок " .. otherPlayer.Name .. " написал: " .. message) -- Отладка
-            if message:find("/connect " .. adminName) then -- Более гибкая проверка
+            print("Игрок " .. otherPlayer.Name .. " написал: " .. message)
+            if message:find("/connect " .. adminName) then
                 print("Обнаружено подключение от " .. otherPlayer.Name)
                 addPlayerToPanel(otherPlayer)
             end
@@ -95,7 +104,7 @@ local function createAdminPanel()
 
     Players.PlayerAdded:Connect(function(newPlayer)
         newPlayer.Chatted:Connect(function(message)
-            print("Новый игрок " .. newPlayer.Name .. " написал: " .. message) -- Отладка
+            print("Новый игрок " .. newPlayer.Name .. " написал: " .. message)
             if message:find("/connect " .. adminName) then
                 print("Обнаружено подключение от " .. newPlayer.Name)
                 addPlayerToPanel(newPlayer)
