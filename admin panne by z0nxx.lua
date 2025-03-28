@@ -57,7 +57,7 @@ local function createAdminPanel()
         PlayerName.BackgroundTransparency = 1
         PlayerName.Parent = PlayerListFrame
 
-        -- Кнопка телепортации (только у админа)
+        -- Кнопка телепортации
         local TeleportButton = Instance.new("TextButton")
         TeleportButton.Size = UDim2.new(0, 80, 0, 30)
         TeleportButton.Position = UDim2.new(0, 215, 0, playerY + 9)
@@ -70,9 +70,8 @@ local function createAdminPanel()
             local adminChar = player.Character
             local targetChar = targetPlayer.Character
             if adminChar and targetChar and adminChar:FindFirstChild("HumanoidRootPart") and targetChar:FindFirstChild("HumanoidRootPart") then
-                -- Телепортируем игрока к админу
-                targetChar.HumanoidRootPart.CFrame = adminChar.HumanoidRootPart.CFrame * CFrame.new(0, 0, -5) -- Чуть впереди админа
-                print("Игрок " .. targetPlayer.Name .. " телепортирован к админу")
+                targetChar.HumanoidRootPart.CFrame = adminChar.HumanoidRootPart.CFrame * CFrame.new(0, 0, -5)
+                print("Игрок " .. targetPlayer.Name .. " телепортирован к админу (визуально)")
             else
                 warn("Не удалось телепортировать: персонаж не найден")
             end
@@ -83,10 +82,12 @@ local function createAdminPanel()
         connectedPlayers[targetPlayer.Name] = true
     end
 
-    -- Слушаем чат
+    -- Слушаем чат с отладкой
     for _, otherPlayer in pairs(Players:GetPlayers()) do
         otherPlayer.Chatted:Connect(function(message)
-            if message == "/connect " .. adminName then
+            print("Игрок " .. otherPlayer.Name .. " написал: " .. message) -- Отладка
+            if message:find("/connect " .. adminName) then -- Более гибкая проверка
+                print("Обнаружено подключение от " .. otherPlayer.Name)
                 addPlayerToPanel(otherPlayer)
             end
         end)
@@ -94,56 +95,13 @@ local function createAdminPanel()
 
     Players.PlayerAdded:Connect(function(newPlayer)
         newPlayer.Chatted:Connect(function(message)
-            if message == "/connect " .. adminName then
+            print("Новый игрок " .. newPlayer.Name .. " написал: " .. message) -- Отладка
+            if message:find("/connect " .. adminName) then
+                print("Обнаружено подключение от " .. newPlayer.Name)
                 addPlayerToPanel(newPlayer)
             end
         end)
     end)
-end
-
--- Функция для отправки сообщения в чат
-local function sendConnectMessage()
-    print("Попытка отправить сообщение от " .. player.Name)
-    local success, err = pcall(function()
-        local chatEvent = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
-        if chatEvent and chatEvent:FindFirstChild("SayMessageRequest") then
-            chatEvent.SayMessageRequest:FireServer("/connect " .. adminName, "All")
-            print("Сообщение успешно отправлено: /connect " .. adminName)
-        else
-            warn("Чат недоступен, пробуем альтернативный метод")
-            alternativeConnect()
-        end
-    end)
-    if not success then
-        warn("Ошибка при отправке: " .. err)
-        alternativeConnect()
-    end
-end
-
--- Альтернативный метод через TextBox
-local function alternativeConnect()
-    print("Альтернативный метод для " .. player.Name)
-    local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Parent = player:WaitForChild("PlayerGui")
-    
-    local TextBox = Instance.new("TextBox")
-    TextBox.Size = UDim2.new(0, 200, 0, 50)
-    TextBox.Position = UDim2.new(0, 0, 0, 0)
-    TextBox.Text = "/connect " .. adminName
-    TextBox.Parent = ScreenGui
-    
-    TextBox:CaptureFocus()
-    wait(0.1)
-    TextBox.Text = "/connect " .. adminName
-    local chatBar = player.PlayerGui:FindFirstChild("Chat") and player.PlayerGui.Chat:FindFirstChild("Frame") and player.PlayerGui.Chat.Frame:FindFirstChild("ChatBar")
-    if chatBar then
-        chatBar.Text = "/connect " .. adminName
-        keypress(0x0D) -- Нажатие Enter
-        wait(0.1)
-        keyrelease(0x0D)
-    end
-    TextBox:ReleaseFocus()
-    ScreenGui:Destroy()
 end
 
 -- Логика в зависимости от игрока
@@ -151,5 +109,5 @@ if player.Name == adminName then
     createAdminPanel()
     print("Админ-панель запущена для " .. adminName)
 else
-    sendConnectMessage()
+    print("Это не админ. Ожидайте ручной ввод /connect " .. adminName)
 end
